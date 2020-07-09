@@ -1,0 +1,198 @@
+package com.test;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+/**
+ * This utility compresses a list of files to standard ZIP format file. It is
+ * able to compress all sub files and sub directories, recursively.
+ * 
+ * @author www.codejava.net
+ *
+ */
+public class ZipUtility {
+	/**
+	 * A constants for buffer size used to read/write data
+	 */
+	private static final int BUFFER_SIZE = 4096;
+	
+	private static int version_number =0;
+
+	/**
+	 * Compresses a list of files to a destination zip file
+	 * 
+	 * @param listFiles
+	 *            A collection of files and directories
+	 * @param destZipFile
+	 *            The path of the destination zip file
+	 * @throws FileNotFoundException
+	 * @throws IOException
+	 */
+	public static void zip(List<File> listFiles, String destZipFile) throws FileNotFoundException, IOException {
+		ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(destZipFile));
+		for (File file : listFiles) {
+			if (file.isDirectory()) {
+				zipDirectory(file, file.getName(), zos);
+			} else {
+				zipFile(file, zos);
+			}
+		}
+		zos.flush();
+		zos.close();
+	}
+
+	/**
+	 * Compresses files represented in an array of paths
+	 * 
+	 * @param files
+	 *            a String array containing file paths
+	 * @param destZipFile
+	 *            The path of the destination zip file
+	 * @throws FileNotFoundException
+	 * @throws IOException
+	 */
+	public static void zip(String[] files, String destZipFile) throws FileNotFoundException, IOException {
+		List<File> listFiles = new ArrayList<File>();
+		for (int i = 0; i < files.length; i++) {
+			listFiles.add(new File(files[i]));
+		}
+		zip(listFiles, destZipFile);
+	}
+
+	/**
+	 * Adds a directory to the current zip output stream
+	 * 
+	 * @param folder
+	 *            the directory to be added
+	 * @param parentFolder
+	 *            the path of parent directory
+	 * @param zos
+	 *            the current zip output stream
+	 * @throws FileNotFoundException
+	 * @throws IOException
+	 */
+	private static void zipDirectory(File folder, String parentFolder, ZipOutputStream zos)
+			throws FileNotFoundException, IOException {
+		for (File file : folder.listFiles()) {
+			if (file.isDirectory()) {
+				zipDirectory(file, parentFolder + "/" + file.getName(), zos);
+				continue;
+			}
+			zos.putNextEntry(new ZipEntry(parentFolder + "/" + file.getName()));
+			BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
+			long bytesRead = 0;
+			byte[] bytesIn = new byte[BUFFER_SIZE];
+			int read = 0;
+			while ((read = bis.read(bytesIn)) != -1) {
+				zos.write(bytesIn, 0, read);
+				bytesRead += read;
+			}
+			zos.closeEntry();
+		}
+	}
+
+	/**
+	 * Adds a file to the current zip output stream
+	 * 
+	 * @param file
+	 *            the file to be added
+	 * @param zos
+	 *            the current zip output stream
+	 * @throws FileNotFoundException
+	 * @throws IOException
+	 */
+	private static void zipFile(File file, ZipOutputStream zos) throws FileNotFoundException, IOException {
+		zos.putNextEntry(new ZipEntry(file.getName()));
+		BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
+		long bytesRead = 0;
+		byte[] bytesIn = new byte[BUFFER_SIZE];
+		int read = 0;
+		while ((read = bis.read(bytesIn)) != -1) {
+			zos.write(bytesIn, 0, read);
+			bytesRead += read;
+		}
+		zos.closeEntry();
+	}
+
+	public static void main(String[] args) {
+		System.out.println("script started");
+		
+		System.out.println("Fetching version details");
+		readVersion();
+		System.out.println("Incrementing version numbers");
+		incrementVersioning();
+		System.out.println("Latest version number :" + version_number);
+		
+		
+		String zipFile = "C:\\Users\\srinath_shankar\\.jenkins\\builds\\V_"+version_number+".zip";
+		// ZipUtility zipUtil = new ZipUtility();
+		File directoryPath = new File("C:\\Users\\srinath_shankar\\.jenkins\\workspace\\checkin");
+		// List of all files and directories
+		File filesList[] = directoryPath.listFiles();
+		System.out.println("List of files and directories in the specified directory:");
+		String myFiles[] = new String[filesList.length];
+		for (int i = 0; i < filesList.length; i++) {
+			myFiles[i] = filesList[i].getAbsolutePath();
+		}
+
+		try {
+			zip(myFiles, zipFile);
+			updateVersionFile();
+		} catch (Exception ex) {
+			// some errors occurred
+			System.out.println("error occurred");
+			ex.printStackTrace();
+		}
+		
+		System.out.println("executed");
+	}
+
+	private static void readVersion() {
+		Path filePath = Paths.get("C:\\Users\\srinath_shankar\\.jenkins\\scripts\\version_control.txt");
+
+		try {
+
+			String firstLine = Files.lines(filePath).findFirst().get();
+			
+			version_number = Integer.valueOf(firstLine);
+			System.out.println("version number in file = " + firstLine);
+
+		} catch (IOException e) {
+
+			// handle exception
+
+		}
+	}
+	
+	private static void incrementVersioning(){
+		if(version_number >0){
+			version_number++;
+		}
+	}
+
+	private static void updateVersionFile() throws IOException {
+		
+		
+		BufferedWriter writer = new BufferedWriter(
+				new FileWriter("C:\\Users\\srinath_shankar\\.jenkins\\scripts\\version_control.txt", false));
+		
+
+		writer.write(String.valueOf(version_number));
+
+		writer.close();
+	}
+
+}
